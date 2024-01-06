@@ -1,0 +1,113 @@
+<?php
+
+use api\models\RecipeToIngredientReplacementProfile;
+use common\models\RecipeToIngredientReplacement;
+use Yiisoft\Strings\StringHelper;
+use alterpage\helpers\FloatHelper;
+
+/** @var \common\models\FoodPlannerPosition[] $foodPlannerCollection */
+/** @var \common\models\Profile $profile */
+/** @var string $dateFrom */
+/** @var string $dateTo */
+?>
+
+<?= empty($foodPlannerCollection) ? "<h2>Brak zaplanowanych posiłków z pośród podanego zakresu dat.</h2>" : "<h2>Plan posiłków</h2>" ?>
+<?= empty($profile) ? '' : $profile->getDisplayName() ?>
+
+<?php if (empty($dateFrom) === false && empty($dateTo) === false) echo "<h4>{$dateFrom} - {$dateTo}</h4>" ?>
+
+<?php
+
+$currentDate = null;
+$currentMealTypeSeq = -1;
+
+if ($foodPlannerCollection) {
+
+    foreach ($foodPlannerCollection as $mealPlanned) {
+
+        if ($currentDate < $mealPlanned->date) {
+
+            $currentDate = $mealPlanned->date;
+            $currentMealTypeSeq = -1;
+
+            $currentDateTime = new DateTime($currentDate);
+
+            $dayName = ucfirst(Yii::$app->formatter->asDate($currentDateTime, 'EEEE'));
+            $dayName = StringHelper::uppercaseFirstCharacter($dayName);
+
+            echo "<br/><br/>";
+            echo "<h3>{$dayName}</h3>";
+        }
+
+        if ($currentMealTypeSeq < $mealPlanned->mealType->sequence) {
+            $currentMealTypeSeq = $mealPlanned->mealType->sequence;
+
+            echo "<h4>{$mealPlanned->mealType->name}</h4>";
+        }
+
+        if ($mealPlanned->meal && $mealPlanned->meal->name) {
+            echo "{$mealPlanned->meal->name} ilość porcji: {$mealPlanned->portions}" . "<br/>";
+        } elseif ($mealPlanned->recipe && $mealPlanned->recipe->isActive() && $mealPlanned->recipe->name) {
+            echo "{$mealPlanned->recipe->name} ilość porcji: {$mealPlanned->portions}" . "<br/>";
+        }
+
+        if ($mealPlanned->recipe && $mealPlanned->recipe->isActive()) {
+            if (count($mealPlanned->recipe->recipeToIngredients) > 0) {
+                echo "<p><i>Składniki:</i></p>";
+
+                echo "<ul>";
+                foreach ($mealPlanned->recipe->recipeToIngredients as $recipeToIngredient) {
+                    $portionCountForAllRecipeMeals = (float) $mealPlanned->recipe->portions;
+
+                    if ($replacementProfile = RecipeToIngredientReplacementProfile::find()->byIngredientId($recipeToIngredient->ingredient_id)->byRecipeId($mealPlanned->recipe_id)->byProfileId($profile->profile_id)->one()) {
+                        $replaceIngredient = RecipeToIngredientReplacement::find()->byRecipeId($mealPlanned->recipe_id)->byIngredientId($replacementProfile->ingredient_id)->byReplaceIngredientId($replacementProfile->replace_ingredient_id)->one();
+                        $unitValueForAllRecipeMeals = FloatHelper::toFloat($replaceIngredient->unit_value);
+                        $unitValueForOneRecipeMeal = $unitValueForAllRecipeMeals / $portionCountForAllRecipeMeals;
+                        $portionCountForPlannedMeals = (float) $mealPlanned->portions;
+                        $unitValueForAllPlannedMeals = $unitValueForOneRecipeMeal * $portionCountForPlannedMeals;
+
+                        echo sprintf(
+                            "<li>%s %s %s</li>",
+                            $replaceIngredient->replaceIngredient->name,
+                            $unitValueForAllPlannedMeals,
+                            $replaceIngredient->unit->name,
+                        );
+                    } else {
+                        $unitValueForAllRecipeMeals = FloatHelper::toFloat($recipeToIngredient->unit_value);
+                        $unitValueForOneRecipeMeal = $unitValueForAllRecipeMeals / $portionCountForAllRecipeMeals;
+                        $portionCountForPlannedMeals = (float) $mealPlanned->portions;
+                        $unitValueForAllPlannedMeals = $unitValueForOneRecipeMeal * $portionCountForPlannedMeals;
+
+                        echo sprintf(
+                            "<li>%s %s %s</li>",
+                            $recipeToIngredient->ingredient->name,
+                            $unitValueForAllPlannedMeals,
+                            $recipeToIngredient->unit->name,
+                        );
+                    }
+                }
+                echo "</ul>";
+            }
+
+            if (count($mealPlanned->recipe->preparationSteps) > 0) {
+                echo "<p><i>Sposób przygotowania:</i></p>";
+
+                echo "<ol>";
+                foreach ($mealPlanned->recipe->preparationSteps as $preparationStep) {
+                    echo sprintf("<li>%s</li>", $preparationStep->content);
+                }
+                echo "</ol>";
+            }
+        }
+
+        if ($mealPlanned->comments) {
+            echo '<p><i>Dodane komentarze:</i></p>';
+
+            foreach ($mealPlanned->comments as $comment) {
+                echo "<p><i>{$comment->content}</i></p>";
+            }
+        }
+        echo '<hr/>';
+    }
+
+}

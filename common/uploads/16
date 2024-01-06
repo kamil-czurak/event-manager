@@ -1,0 +1,52 @@
+<?php
+/** @var \common\models\Recipe $recipe */
+/** @var array $ingredients */
+?>
+
+<h1><?= $recipe->name ?></h1>
+
+<div class="img-wrapper">
+    <img class="recipe-img" src="<?= $recipe->mainImage->getThumbnail(1000, 500)->getPath() ?>" alt="">
+</div>
+<h2>Składniki</h2>
+
+<ul>
+    <?php
+        if (empty($ingredients) === false) {
+            foreach ($ingredients as $recipeToIngredient) {
+                $ingredientName = null;
+                if (empty($recipeToIngredient["ingredient"]) === false) {
+                    $ingredientName = $recipeToIngredient["ingredient"]->name;
+                }
+
+                $unitName = null;
+                if (empty($recipeToIngredient["unit"]) === false) {
+                    $unitName = $recipeToIngredient["unit"]->name;
+                }
+
+                echo sprintf(
+                    "<li>%s %s %s</li>",
+                    $ingredientName,
+                    $recipeToIngredient['quantity'] ?? null,
+                    $unitName,
+                );
+            }
+        } else {
+             foreach ($recipe->recipeToIngredients as $recipeToIngredient) {
+                echo sprintf(
+                    "<li>%s %s %s</li>",
+                    $recipeToIngredient->ingredient->name,
+                    $recipeToIngredient->unit_value,
+                    $recipeToIngredient->unit->name
+                );
+             }
+        }
+    ?>
+</ul>
+
+<h2>Sposób przygotowania</h2>
+<ol>
+<?php foreach ($recipe->preparationSteps as $preparationStep): ?>
+    <li><?= $preparationStep->content ?></li>
+<?php endforeach; ?>
+</ol>
