@@ -7,6 +7,7 @@ use Yii;
 /**
  * This is the model class for table "auth_item".
  *
+ * @property int $item_id
  * @property string $name
  * @property int $type
  * @property string|null $description

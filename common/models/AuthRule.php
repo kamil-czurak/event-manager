@@ -7,6 +7,7 @@ use Yii;
 /**
  * This is the model class for table "auth_rule".
  *
+ * @property integer $rule_id
  * @property string $name
  * @property resource|null $data
  * @property int $created_at
